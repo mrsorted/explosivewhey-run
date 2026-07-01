@@ -558,19 +558,20 @@
       c.beginPath();c.arc(x,footY-30,52,0,7);c.fill();c.restore();}
     // ---- licensed player image: body + articulated real-art shins ----
     if(imgReady(IMG.player)){
-      var iw=IMG.player.naturalWidth||183, ih=IMG.player.naturalHeight||180;
-      var hh=Math.round((canvasH||560)*0.225), hw=hh*iw/ih;
-      var ox=-hw/2, oy=-hh;
+      var hh=Math.round((canvasH||560)*0.225);
       c.save();
       c.translate(x, footY);
       if(state==="jump" && imgReady(IMG.jumpsheet)){
+        var jw=IMG.jumpsheet.naturalWidth/JUMP_FRAMES, jh=IMG.jumpsheet.naturalHeight, hwj=hh*jw/jh;
         var jf=Math.max(0,Math.min(JUMP_FRAMES-1, Math.round((vy+760)/1520*(JUMP_FRAMES-1))));
-        c.drawImage(IMG.jumpsheet, jf*iw,0,iw,ih, ox,oy,hw,hh);
+        c.drawImage(IMG.jumpsheet, jf*jw,0,jw,jh, -hwj/2,-hh,hwj,hh);
       }else if(state==="run" && imgReady(IMG.runsheet)){
+        var rw=IMG.runsheet.naturalWidth/RUN_FRAMES, rh=IMG.runsheet.naturalHeight, hwr=hh*rw/rh;
         var fr=((Math.floor(ph/(2*Math.PI/RUN_FRAMES))%RUN_FRAMES)+RUN_FRAMES)%RUN_FRAMES;
-        c.drawImage(IMG.runsheet, fr*iw,0,iw,ih, ox,oy,hw,hh);
+        c.drawImage(IMG.runsheet, fr*rw,0,rw,rh, -hwr/2,-hh,hwr,hh);
       }else{
-        c.drawImage(IMG.player, ox,oy,hw,hh);
+        var iw=IMG.player.naturalWidth, ih=IMG.player.naturalHeight, hwi=hh*iw/ih;
+        c.drawImage(IMG.player, -hwi/2,-hh,hwi,hh);
       }
       c.restore();
       return;
@@ -668,12 +669,13 @@
       if(cheerT>0)cheerT-=dt;
       if(boost>0)boost-=dt;
       if(flash>0)flash-=dt;
-      // spawn (stumps hurdles → jump over)
+      // spawn (stumps hurdles → jump over) — varied, less predictable spacing
       spawnT-=dt;
       if(spawnT<=0){
         obs.push({x:W+30,w:ri(16,28),kind:"stumps",h:ri(30,46)});
-        spawnT=rand(0.9,1.4)*(300/speed)+0.5;
-        if(Math.random()<0.28)items.push({x:W+rand(60,140),y:groundY-ri(70,130),got:false});
+        var extra=(Math.random()<0.2)?rand(0.9,1.6):0;               // occasional long gap
+        spawnT=(rand(0.7,2.0)+extra)*(300/speed)+0.42;               // wider random spacing
+        if(Math.random()<0.11)items.push({x:W+rand(60,140),y:groundY-ri(70,130),got:false}); // rarer shakers
       }
       for(var i=obs.length-1;i>=0;i--){obs[i].x-=speed*dt;if(obs[i].x+obs[i].w<-30)obs.splice(i,1);}
       for(var j=items.length-1;j>=0;j--){items[j].x-=speed*dt;if(items[j].x<-30)items.splice(j,1);}
@@ -784,6 +786,22 @@
       c.beginPath();c.ellipse(heroX,groundY+3,Math.max(10,26-lift*0.12),6,0,0,7);c.fill();c.restore();
       // hero
       var st=hero.state;drawHero(c,heroX,groundY-hero.off,started?st:"run",phase,boost,H,hero.vy||0);
+      // Explosive Whey shield (while boosted; blinks as it runs out)
+      if(boost>0){
+        var hhH=Math.round(H*0.225), cyS=groundY-hero.off-hhH*0.52, rrY=hhH*0.66, rrX=hhH*0.52;
+        var blink=(boost>0.9)||(Math.floor(t*10)%2===0);
+        if(blink){
+          var pl=0.5+0.5*Math.sin(t*9);
+          c.save();
+          c.globalAlpha=0.12+pl*0.08;c.fillStyle="#0A6FB5";
+          c.beginPath();c.ellipse(heroX,cyS,rrX,rrY,0,0,7);c.fill();
+          c.globalAlpha=0.6+pl*0.35;c.lineWidth=3;c.strokeStyle="#3FB0EE";
+          c.beginPath();c.ellipse(heroX,cyS,rrX,rrY,0,0,7);c.stroke();
+          c.globalAlpha=0.35;c.lineWidth=1.5;c.strokeStyle="#EAF7FF";
+          c.beginPath();c.ellipse(heroX,cyS,rrX*0.85,rrY*0.9,0,0,7);c.stroke();
+          c.restore();
+        }
+      }
       // floating score popups
       for(var pz=0;pz<pops.length;pz++){var pp=pops[pz];c.save();c.globalAlpha=Math.max(0,Math.min(1,pp.life*1.4));
         c.fillStyle="#05467A";c.font="800 18px Anton, sans-serif";c.textAlign="center";c.textBaseline="middle";

@@ -118,6 +118,10 @@
   .lbrow .rk.top{color:var(--yellow)}
   .lbrow .nm{flex:1;font-weight:600}
   .lbrow .sc{font-weight:800;color:var(--yellow);font-variant-numeric:tabular-nums}
+  .lbrow.me{background:rgba(5,70,122,.07);border-radius:8px;padding:9px 8px;margin:0 -8px;border-bottom:none}
+  .lbrow.me .nm{color:var(--blue)}
+  .lbgap{text-align:center;color:var(--muted);font-size:14px;letter-spacing:3px;padding:2px 0}
+  .lbmsg{margin-top:12px;text-align:center;font-size:12.5px;font-weight:600;color:var(--blue);line-height:1.4}
   .lbempty{color:var(--muted);font-size:12.5px;text-align:center;padding:14px 0}
   .center{text-align:center}
 </style>
@@ -132,7 +136,7 @@
   <p class="sub">Dodge the stumps and bouncers, go the distance. <b>5 runs each.</b> Top score wins <b>signed #7 merch</b>.</p>
   <div class="panel">
     <label>Verify to play</label>
-    <div class="seg"><button id="tabPhone" class="on">Phone</button><button id="tabEmail" class="hidden">Email</button></div>
+    <div class="seg hidden"><button id="tabPhone" class="on">Phone</button><button id="tabEmail" class="hidden">Email</button></div>
 
     <div id="stepId">
       <div class="field" id="phoneField">
@@ -340,6 +344,7 @@
      Set TESTING = false for the live contest (5 runs + OTP verification). */
   var TESTING=false;
   var MAX_TURNS=5;
+  var turnsRemaining=null;   // server-authoritative runs left (remote); mirrors local turns in demo mode
   var POWERUP_PTS=50;
   function pkey(){return "ew7_player_"+(Auth.id||"anon");}
   function player(){return Store.get(pkey())||{turns:MAX_TURNS,best:0,name:Auth.name,mask:maskId(Auth.mode,Auth.id||"")};}
@@ -383,6 +388,18 @@
         for(var i=0;i<list.length;i++) if(list[i].id===Auth.id) return i+1;
         return null;
       });
+    },
+    /* server-authoritative runs: 5 per verified phone (uid is stable per phone),
+       so clearing cookies / switching device does NOT reset the count. */
+    turnsLeft:function(){
+      if(this.remote&&Auth.id) return this.sb.rpc("ew7_turns_left",{p_player_id:Auth.id})
+        .then(function(r){return r.error?null:r.data;}).catch(function(){return null;});
+      return Promise.resolve(null);
+    },
+    consumeTurn:function(){
+      if(this.remote&&Auth.id) return this.sb.rpc("ew7_consume_turn",{p_player_id:Auth.id,p_phone:Auth.phone||null})
+        .then(function(r){return r.error?null:r.data;}).catch(function(){return null;});
+      return Promise.resolve(null);
     }
   };
 
@@ -469,32 +486,79 @@
     otpInputs.forEach(function(x){x.value="";});authMsg.textContent="";};
 
   /* ---------------- LOBBY ---------------- */
+  var serverTurns=!TESTING&&Scores.remote&&Auth.id;  // recomputed per lobby entry below
+  function setTurnUI(rem){
+    var pb=document.getElementById("playBtn");
+    if(rem===Infinity){document.getElementById("turnsLeft").textContent="∞";pb.disabled=false;pb.textContent="Play ›";return;}
+    document.getElementById("turnsLeft").textContent=rem+"/"+MAX_TURNS;
+    if(rem<=0){pb.disabled=true;pb.textContent="Out of runs — that's all 5!";}
+    else{pb.disabled=false;pb.textContent="Play ›  ("+rem+" left)";}
+  }
   function refreshLobby(){
     var p=player();
     document.getElementById("who").textContent=p.name||maskId(Auth.mode,Auth.id);
     document.getElementById("hiName").textContent=(p.name||"finisher").split(" ")[0];
-    document.getElementById("turnsLeft").textContent=TESTING?"∞":(p.turns+"/"+MAX_TURNS);
     document.getElementById("bestScore").textContent=p.best;
     document.getElementById("rankNo").textContent="…";
     Scores.rank().then(function(rk){document.getElementById("rankNo").textContent=rk?("#"+rk):"—";});
-    var pb=document.getElementById("playBtn");
-    if(!TESTING&&p.turns<=0){pb.disabled=true;pb.textContent="Out of runs — come back tomorrow";}
-    else{pb.disabled=false;pb.textContent=TESTING?"Play ›":("Play ›  ("+p.turns+" left)");}
+    serverTurns=!TESTING&&Scores.remote&&!!Auth.id;
+    if(TESTING){setTurnUI(Infinity);return;}
+    if(serverTurns){
+      document.getElementById("turnsLeft").textContent="…";
+      Scores.turnsLeft().then(function(rem){turnsRemaining=(rem==null?MAX_TURNS:rem);setTurnUI(turnsRemaining);});
+    }else{
+      turnsRemaining=p.turns;setTurnUI(turnsRemaining);
+    }
   }
   function enterLobby(){screen("lobby");refreshLobby();}
-  document.getElementById("playBtn").onclick=function(){var p=player();if(!TESTING&&p.turns<=0)return;startGame();};
+  /* consume a server run (or a local turn) then start; used by Play and Play again */
+  function attemptStart(){
+    if(TESTING){startGame();return;}
+    if(serverTurns){
+      var pb=document.getElementById("playBtn");if(pb){pb.disabled=true;pb.textContent="Starting…";}
+      Scores.consumeTurn().then(function(rem){
+        if(rem==null){startGame();return;}          // network hiccup: fail-open, don't lock out a real player
+        if(rem<0){turnsRemaining=0;setTurnUI(0);return;} // no runs left
+        turnsRemaining=rem;startGame();
+      });
+      return;
+    }
+    var p=player();if(p.turns<=0)return;startGame();
+  }
+  document.getElementById("playBtn").onclick=attemptStart;
   document.getElementById("lbBtn").onclick=function(){screen("play");openBoard();};
   document.getElementById("backBtn").onclick=function(){stopGame();enterLobby();};
 
   /* ---------------- leaderboard overlay ---------------- */
+  function lbRowHtml(rank,name,score,isTop,isMe){
+    return '<div class="lbrow'+(isMe?" me":"")+'"><div class="rk'+(isTop?" top":"")+'">'+rank+
+      '</div><div class="nm">'+name+'</div><div class="sc">'+score+'m</div></div>';
+  }
+  function wittyMsg(rank,myScore,tenthScore){
+    if(!rank) return "Post a score to get on the board!";
+    if(rank===1) return "🏆 Top of the table — Thala for a reason.";
+    if(rank<=3)  return "🔥 Podium finish. Signed #7 merch is in sight.";
+    if(rank<=10) return "You're in the Top 10 — now defend your spot.";
+    var gap=Math.max(0,(tenthScore||0)-(myScore||0));
+    if(gap<=50)  return "So close! Just <b>"+gap+"m</b> off the Top 10 — one clean run does it.";
+    if(gap<=200) return "Almost there — <b>"+gap+"m</b> from the Top 10. You've got this.";
+    return "Rank <b>#"+rank+"</b>. Keep running — the Top 10 is calling.";
+  }
   function renderBoard(){
     var el=document.getElementById("lbList");
     el.innerHTML='<div class="lbempty">Loading…</div>';
-    Scores.top(10).then(function(b){
-      if(!b.length){el.innerHTML='<div class="lbempty">No scores yet. Be the first to post one!</div>';return;}
-      el.innerHTML=b.map(function(r,i){
-        return '<div class="lbrow"><div class="rk'+(i<3?" top":"")+'">'+(i+1)+'</div><div class="nm">'+
-          (r.id===Auth.id?"You":esc(r.name))+'</div><div class="sc">'+r.score+'m</div></div>';}).join("");
+    Scores.top(200).then(function(all){
+      if(!all.length){el.innerHTML='<div class="lbempty">No scores yet. Be the first to post one!</div>';return;}
+      var myRank=null,myScore=null;
+      for(var i=0;i<all.length;i++){if(all[i].id===Auth.id){myRank=i+1;myScore=all[i].score;break;}}
+      var top=all.slice(0,10);
+      var html=top.map(function(r,i){return lbRowHtml(i+1,(r.id===Auth.id?"You":esc(r.name)),r.score,i<3,r.id===Auth.id);}).join("");
+      if(myRank&&myRank>10){
+        html+='<div class="lbgap">···</div>'+lbRowHtml(myRank,"You",myScore,false,true);
+      }
+      var tenth=top.length>=10?top[9].score:0;
+      html+='<div class="lbmsg">'+wittyMsg(myRank,myScore,tenth)+'</div>';
+      el.innerHTML=html;
     });
   }
   function esc(s){return String(s).replace(/[<>&]/g,function(c){return{"<":"&lt;",">":"&gt;","&":"&amp;"}[c];});}
@@ -687,7 +751,7 @@
     c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 
   function startGame(){
-    var p=player(); if(p.turns<=0)return;
+    var p=player(); if(!TESTING&&!serverTurns&&p.turns<=0)return;   // server mode gates via attemptStart, not stale local turns
     screen("play"); overEl.classList.remove("show"); gameLive=true;
     var stage=makeStage(stageEl);
     var W,H,groundY,started=false,dead=false,score=0,t=0,speed,spawnT,phase=0,boost=0,scoops=0,flash=0;
@@ -860,7 +924,11 @@
     function finish(){
       if(stage.stopped)return; stage.stop(); gameLive=false;
       var sc=Math.floor(score);
-      var p=player();if(!TESTING)p.turns=Math.max(0,p.turns-1);var isBest=sc>p.best;if(isBest)p.best=sc;savePlayer(p);
+      var p=player();
+      // server mode already consumed the run at start; only the local/demo path decrements here
+      if(!TESTING&&!serverTurns)p.turns=Math.max(0,p.turns-1);
+      var isBest=sc>p.best;if(isBest)p.best=sc;savePlayer(p);
+      var remLeft=TESTING?Infinity:(serverTurns?(turnsRemaining==null?0:turnsRemaining):p.turns);
       var entry="EW7-"+code5();
       last={score:sc,code:entry,name:(p.name||"Challenger")};
       document.getElementById("shStatus").textContent="";
@@ -868,7 +936,7 @@
       document.getElementById("sCode").textContent=entry;
       document.getElementById("sRes").textContent=(isBest?"NEW BEST!":"INNINGS OVER");
       var tl="You ran <b>"+sc+"m</b>"+(scoops?(" with <b>"+scoops+"</b> Explosive boosts"):"")+
-        ". Rank <b>#…</b>"+(TESTING?"":(" · <b>"+p.turns+"</b> run"+(p.turns===1?"":"s")+" left."));
+        ". Rank <b>#…</b>"+(TESTING?"":(" · <b>"+remLeft+"</b> run"+(remLeft===1?"":"s")+" left."));
       document.getElementById("sTline").innerHTML=tl;
       Scores.submit({id:Auth.id,name:(p.name||"Challenger"),score:sc,code:entry}).then(function(){
         return Scores.rank();
@@ -876,8 +944,8 @@
         document.getElementById("sTline").innerHTML=tl.replace("#…","#"+(rk||"—"));
       });
       var btns=document.getElementById("ovBtns");btns.innerHTML="";
-      if(TESTING||p.turns>0){var b1=document.createElement("button");b1.className="btn primary";b1.textContent="Play again";
-        b1.onclick=function(){overEl.classList.remove("show");startGame();};btns.appendChild(b1);}
+      if(TESTING||remLeft>0){var b1=document.createElement("button");b1.className="btn primary";b1.textContent="Play again";
+        b1.onclick=function(){overEl.classList.remove("show");attemptStart();};btns.appendChild(b1);}
       var b2=document.createElement("button");b2.className="btn ghost";b2.textContent="Leaderboard";
       b2.onclick=function(){openBoard();};btns.appendChild(b2);
       var b3=document.createElement("button");b3.className="btn ghost";b3.textContent="Exit";

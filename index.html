@@ -38,6 +38,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     display:flex;align-items:center;gap:8px;justify-content:center}
   .eyebrow::before,.eyebrow::after{content:"";height:1px;width:22px;background:#CBCBC3}
   .brandmark{display:block;height:54px;width:auto;margin:0 auto 10px}
+  .heroimg{display:block;width:100%;max-width:300px;height:auto;margin:10px auto 2px}
   .stublogo{position:absolute;top:-20px;left:50%;transform:translateX(-50%);background:#fff;border:1px solid var(--line);border-radius:12px;padding:7px 13px;box-shadow:0 6px 16px rgba(20,40,60,.12)}
   .stublogo img{height:24px;display:block}
   h1{font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(40px,14vw,64px);line-height:.86;text-align:center;margin:8px 0 4px;color:var(--ink)}
@@ -56,8 +57,9 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   .row{display:flex;gap:8px}
   .phone-cc{flex:0 0 64px}
   .field{margin-bottom:13px}
-  .consent{display:flex;gap:9px;align-items:flex-start;font-size:11.5px;color:var(--muted);line-height:1.45;margin:4px 0 14px}
-  .consent input{margin-top:2px}
+  .consent{display:flex;gap:9px;align-items:flex-start;font-size:10px;color:var(--muted);line-height:1.4;margin:4px 0 14px}
+  .consent input{margin-top:1px}
+  .consent a{color:var(--blue);text-decoration:underline}
   .btn{width:100%;border:none;cursor:pointer;font-weight:800;font-size:15px;padding:14px;border-radius:12px;font-family:inherit}
   .btn.primary{background:var(--blue);color:#fff}
   .btn.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
@@ -149,7 +151,8 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   <img id="authLogo" class="brandmark" alt="Explosive Whey">
   <div class="eyebrow">MS Dhoni Birthday · #7</div>
   <h1>Explosive <span class="g">Run</span></h1>
-  <p class="sub">Dodge the stumps and bouncers, go the distance. <b>5 runs each.</b> Top score wins <b>signed #7 merch</b>.</p>
+  <p class="sub">Dodge the stumps, go the distance. Top score wins <b>signed #7 merch</b>.</p>
+  <img class="heroimg" src="hero-dhoni.png" alt="MS Dhoni with a signed Explosive Whey polo" width="820" height="818">
   <div class="panel">
     <label>Verify to play</label>
     <div class="seg hidden"><button id="tabPhone" class="on">Phone</button><button id="tabEmail" class="hidden">Email</button></div>
@@ -165,7 +168,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
         <input type="email" id="email" placeholder="you@email.com" autocomplete="email">
       </div>
       <div class="field"><input type="text" id="dname" placeholder="Display name (shown on leaderboard)" maxlength="18" autocomplete="nickname"></div>
-      <label class="consent"><input type="checkbox" id="consent"><span>I agree to be contacted about the #7 contest and to the contest terms.</span></label>
+      <label class="consent"><input type="checkbox" id="consent"><span>I agree to be contacted about the #7 contest and to the <a href="https://explosivewhey.com/win-terms" target="_blank" rel="noopener">contest terms</a>.</span></label>
       <button class="btn primary" id="sendBtn">Send code</button>
     </div>
 
@@ -185,7 +188,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     <div class="msg" id="authMsg"></div>
     <div id="recaptcha-container"></div>
   </div>
-  <p class="sub" style="margin-top:14px;font-size:11px">We text a one-time code to verify your number. Standard SMS rates may apply.</p>
+  <p class="sub" style="margin-top:14px;font-size:11px">We text a one-time code to verify your number.</p>
 </div>
 
 <!-- ============ LOBBY ============ -->
@@ -195,7 +198,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     <div class="pill">Runs left <span class="v" id="turnsLeft">5</span></div>
   </div>
   <h1 style="font-size:clamp(34px,11vw,52px)">Ready, <span class="g" id="hiName">finisher</span>?</h1>
-  <p class="sub">Tap to <b>Jump</b> the stumps and dodge the ball. One hit and the innings is over.</p>
+  <p class="sub">Tap to <b>Jump</b> the stumps. One hit and the innings is over.</p>
   <div class="stat">
     <div class="box"><div class="n" id="bestScore">0</div><div class="l">Your best (m)</div></div>
     <div class="box"><div class="n" id="rankNo">—</div><div class="l">Your rank</div></div>
@@ -252,7 +255,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   <div class="controls">
     <button class="ctrl" id="jumpBtn">▲ Jump <span class="k">Tap / Space</span></button>
   </div>
-  <div class="hint">Tap anywhere (or <b>Space</b>) to jump the stumps and dodge the ball. Grab the <b>EW protein shake</b> for an Explosive boost.</div>
+  <div class="hint">Tap anywhere (or <b>Space</b>) to jump the stumps. Grab the <b>EW protein shake</b> for an Explosive boost.</div>
 </div>
 
 <script>
@@ -361,6 +364,9 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   var TESTING=false;
   var MAX_TURNS=5;
   var turnsRemaining=null;   // server-authoritative runs left (remote); mirrors local turns in demo mode
+  /* verified phones that get unlimited runs (internal QA/test accounts) */
+  var UNLIMITED_PHONES={"+917744907000":true};
+  function isUnlimited(){return TESTING||(!!Auth.phone&&!!UNLIMITED_PHONES[Auth.phone]);}
   var POWERUP_PTS=50;
   function pkey(){return "ew7_player_"+(Auth.id||"anon");}
   function player(){return Store.get(pkey())||{turns:MAX_TURNS,best:0,name:Auth.name,mask:maskId(Auth.mode,Auth.id||"")};}
@@ -502,10 +508,10 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     otpInputs.forEach(function(x){x.value="";});authMsg.textContent="";};
 
   /* ---------------- LOBBY ---------------- */
-  var serverTurns=!TESTING&&Scores.remote&&Auth.id;  // recomputed per lobby entry below
+  var serverTurns=!isUnlimited()&&Scores.remote&&Auth.id;  // recomputed per lobby entry below
   function setTurnUI(rem){
     var pb=document.getElementById("playBtn");
-    if(rem===Infinity){document.getElementById("turnsLeft").textContent="∞";pb.disabled=false;pb.textContent="Play ›";return;}
+    if(rem===Infinity||rem>MAX_TURNS){document.getElementById("turnsLeft").textContent="∞";pb.disabled=false;pb.textContent="Play ›";return;}
     document.getElementById("turnsLeft").textContent=rem+"/"+MAX_TURNS;
     if(rem<=0){pb.disabled=true;pb.textContent="Out of runs — that's all 5!";}
     else{pb.disabled=false;pb.textContent="Play ›  ("+rem+" left)";}
@@ -517,8 +523,8 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     document.getElementById("bestScore").textContent=p.best;
     document.getElementById("rankNo").textContent="…";
     Scores.rank().then(function(rk){document.getElementById("rankNo").textContent=rk?("#"+rk):"—";});
-    serverTurns=!TESTING&&Scores.remote&&!!Auth.id;
-    if(TESTING){setTurnUI(Infinity);return;}
+    serverTurns=!isUnlimited()&&Scores.remote&&!!Auth.id;
+    if(isUnlimited()){setTurnUI(Infinity);return;}
     if(serverTurns){
       document.getElementById("turnsLeft").textContent="…";
       Scores.turnsLeft().then(function(rem){turnsRemaining=(rem==null?MAX_TURNS:rem);setTurnUI(turnsRemaining);});
@@ -529,7 +535,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   function enterLobby(){screen("lobby");refreshLobby();}
   /* consume a server run (or a local turn) then start; used by Play and Play again */
   function attemptStart(){
-    if(TESTING){startGame();return;}
+    if(isUnlimited()){startGame();return;}
     if(serverTurns){
       var pb=document.getElementById("playBtn");if(pb){pb.disabled=true;pb.textContent="Starting…";}
       Scores.consumeTurn().then(function(rem){
@@ -767,7 +773,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     c.arcTo(x+w,y,x+w,y+h,r);c.arcTo(x+w,y+h,x,y+h,r);c.arcTo(x,y+h,x,y,r);c.arcTo(x,y,x+w,y,r);c.closePath();}
 
   function startGame(){
-    var p=player(); if(!TESTING&&!serverTurns&&p.turns<=0)return;   // server mode gates via attemptStart, not stale local turns
+    var p=player(); if(!isUnlimited()&&!serverTurns&&p.turns<=0)return;   // server mode gates via attemptStart, not stale local turns
     screen("play"); overEl.classList.remove("show"); gameLive=true;
     var stage=makeStage(stageEl);
     var W,H,groundY,started=false,dead=false,score=0,t=0,speed,spawnT,phase=0,boost=0,scoops=0,flash=0;
@@ -942,9 +948,9 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
       var sc=Math.floor(score);
       var p=player();
       // server mode already consumed the run at start; only the local/demo path decrements here
-      if(!TESTING&&!serverTurns)p.turns=Math.max(0,p.turns-1);
+      if(!isUnlimited()&&!serverTurns)p.turns=Math.max(0,p.turns-1);
       var isBest=sc>p.best;if(isBest)p.best=sc;savePlayer(p);
-      var remLeft=TESTING?Infinity:(serverTurns?(turnsRemaining==null?0:turnsRemaining):p.turns);
+      var remLeft=isUnlimited()?Infinity:(serverTurns?(turnsRemaining==null?0:turnsRemaining):p.turns);
       var entry="EW7-"+code5();
       last={score:sc,code:entry,name:(p.name||"Challenger")};
       document.getElementById("shStatus").textContent="";
@@ -952,7 +958,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
       document.getElementById("sCode").textContent=entry;
       document.getElementById("sRes").textContent=(isBest?"NEW BEST!":"INNINGS OVER");
       var tl="You ran <b>"+sc+"m</b>"+(scoops?(" with <b>"+scoops+"</b> Explosive boosts"):"")+
-        ". Rank <b>#…</b>"+(TESTING?"":(" · <b>"+remLeft+"</b> run"+(remLeft===1?"":"s")+" left."));
+        ". Rank <b>#…</b>"+(isUnlimited()?"":(" · <b>"+remLeft+"</b> run"+(remLeft===1?"":"s")+" left."));
       document.getElementById("sTline").innerHTML=tl;
       Scores.submit({id:Auth.id,name:(p.name||"Challenger"),score:sc,code:entry}).then(function(){
         return Scores.rank();
@@ -960,7 +966,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
         document.getElementById("sTline").innerHTML=tl.replace("#…","#"+(rk||"—"));
       });
       var btns=document.getElementById("ovBtns");btns.innerHTML="";
-      if(TESTING||remLeft>0){var b1=document.createElement("button");b1.className="btn primary";b1.textContent="Play again";
+      if(isUnlimited()||remLeft>0){var b1=document.createElement("button");b1.className="btn primary";b1.textContent="Play again";
         b1.onclick=function(){overEl.classList.remove("show");attemptStart();};btns.appendChild(b1);}
       var b2=document.createElement("button");b2.className="btn ghost";b2.textContent="Leaderboard";
       b2.onclick=function(){openBoard();};btns.appendChild(b2);

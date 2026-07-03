@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Explosive Run — Admin</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{--bg:#F0F0ED;--card:#FFF;--line:#E2E2DB;--ink:#13242F;--muted:#5E6B79;--blue:#05467A;--red:#CC3A3A;--green:#13864F}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+  .wrap{max-width:960px;margin:0 auto;padding:24px 16px 80px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 20px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  label{display:block;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;font-size:15px;background:#fff}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:120px}
+  button{border:0;border-radius:10px;padding:11px 16px;font-weight:700;font-size:14px;cursor:pointer;background:var(--blue);color:#fff}
+  button.ghost{background:#fff;border:1px solid var(--line);color:var(--ink)}
+  button.danger{background:var(--red);color:#fff}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .msg{font-size:13px;margin-top:10px;min-height:18px}
+  .msg.err{color:var(--red)} .msg.ok{color:var(--green)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  td.num{font-variant-numeric:tabular-nums}
+  .tag{font-size:11px;background:#eef;border-radius:6px;padding:2px 6px;color:var(--blue)}
+  .scroll{overflow-x:auto}
+  .hidden{display:none}
+  .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+  .spacer{flex:1}
+  .count{font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Explosive Run — Leaderboard Admin</h1>
+  <p class="sub">Private console. Manage entries and verified contacts for the #7 contest.</p>
+
+  <!-- Login -->
+  <div class="card" id="loginCard">
+    <label for="pw">Admin password</label>
+    <div class="row">
+      <div style="flex:3"><input type="password" id="pw" placeholder="Enter admin password" autocomplete="current-password"></div>
+      <div style="flex:0 0 auto"><button id="loginBtn">Unlock</button></div>
+    </div>
+    <div class="msg" id="loginMsg"></div>
+  </div>
+
+  <!-- Console -->
+  <div id="console" class="hidden">
+    <div class="card">
+      <div class="bar">
+        <button class="ghost" id="refreshBtn">↻ Refresh</button>
+        <button class="danger" id="clearGuestsBtn">Clear all test guests</button>
+        <span class="spacer"></span>
+        <span class="count" id="count"></span>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Score (m)</th><th>Code</th><th>Player ID</th><th>Updated</th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="msg" id="listMsg"></div>
+    </div>
+
+    <div class="card">
+      <label>Add / edit an entry</label>
+      <div class="row">
+        <div><input id="aName" placeholder="Display name"></div>
+        <div><input id="aScore" type="number" inputmode="numeric" placeholder="Score (m)"></div>
+        <div><input id="aId" placeholder="Player ID (blank = new)"></div>
+        <div style="flex:0 0 auto"><button id="upsertBtn">Save</button></div>
+      </div>
+      <div class="msg" id="upsertMsg"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var SUPABASE_URL="https://cuaqvmrdlchbhlyitzuv.supabase.co";
+  var SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1YXF2bXJkbGNoYmhseWl0enV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzQzMzAsImV4cCI6MjA5MDgxMDMzMH0.i75Az51OmvteiDnlPDUdu_IXDogRw_GVB2zCTNi8x7k";
+  var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
+  var PW=null;  // held in memory only, never stored
+
+  var $=function(id){return document.getElementById(id);};
+  function setMsg(el,text,kind){el.textContent=text;el.className="msg"+(kind?(" "+kind):"");}
+  function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+  function fmtDate(s){try{return new Date(s).toLocaleString();}catch(e){return s||"";}}
+
+  function login(){
+    var pw=$("pw").value;
+    if(!pw){setMsg($("loginMsg"),"Enter the password.","err");return;}
+    $("loginBtn").disabled=true;setMsg($("loginMsg"),"Checking…");
+    sb.rpc("ew7_admin_entries",{p_pw:pw}).then(function(r){
+      $("loginBtn").disabled=false;
+      if(r.error){setMsg($("loginMsg"),"Wrong password or access denied.","err");return;}
+      PW=pw;$("pw").value="";
+      $("loginCard").classList.add("hidden");
+      $("console").classList.remove("hidden");
+      render(r.data||[]);
+    });
+  }
+
+  function load(){
+    if(PW==null)return;
+    setMsg($("listMsg"),"Loading…");
+    sb.rpc("ew7_admin_entries",{p_pw:PW}).then(function(r){
+      if(r.error){setMsg($("listMsg"),"Session expired — reload and unlock again.","err");return;}
+      render(r.data||[]);
+    });
+  }
+
+  function render(list){
+    var tb=$("rows");tb.innerHTML="";
+    list.forEach(function(row,i){
+      var tr=document.createElement("tr");
+      var guest=/^guest-/.test(row.player_id)?' <span class="tag">test</span>':"";
+      tr.innerHTML=
+        "<td class='num'>"+(i+1)+"</td>"+
+        "<td>"+esc(row.name)+guest+"</td>"+
+        "<td>"+esc(row.phone||"—")+"</td>"+
+        "<td class='num'>"+esc(row.score)+"</td>"+
+        "<td>"+esc(row.code||"")+"</td>"+
+        "<td style='color:var(--muted)'>"+esc(row.player_id)+"</td>"+
+        "<td style='color:var(--muted)'>"+esc(fmtDate(row.updated_at))+"</td>"+
+        "<td></td>";
+      var btn=document.createElement("button");
+      btn.className="danger";btn.textContent="Delete";btn.style.padding="6px 10px";btn.style.fontSize="12px";
+      btn.onclick=function(){delEntry(row.player_id,row.name);};
+      tr.lastChild.appendChild(btn);
+      tb.appendChild(tr);
+    });
+    $("count").textContent=list.length+" entr"+(list.length===1?"y":"ies");
+    setMsg($("listMsg"),"");
+  }
+
+  function delEntry(id,name){
+    if(!confirm('Delete "'+name+'" ('+id+')? This also removes their contact.'))return;
+    sb.rpc("ew7_admin_delete",{p_pw:PW,p_player_id:id}).then(function(r){
+      if(r.error){setMsg($("listMsg"),"Delete failed.","err");return;}
+      setMsg($("listMsg"),"Deleted "+id+".","ok");load();
+    });
+  }
+
+  function clearGuests(){
+    if(!confirm("Delete ALL guest-* test entries? This cannot be undone."))return;
+    $("clearGuestsBtn").disabled=true;
+    sb.rpc("ew7_admin_clear_guests",{p_pw:PW}).then(function(r){
+      $("clearGuestsBtn").disabled=false;
+      if(r.error){setMsg($("listMsg"),"Clear failed.","err");return;}
+      setMsg($("listMsg"),"Removed "+r.data+" test guest(s).","ok");load();
+    });
+  }
+
+  function upsert(){
+    var name=$("aName").value.trim(),score=parseInt($("aScore").value,10),id=$("aId").value.trim();
+    if(!name){setMsg($("upsertMsg"),"Name required.","err");return;}
+    if(isNaN(score)){setMsg($("upsertMsg"),"Score must be a number.","err");return;}
+    $("upsertBtn").disabled=true;
+    sb.rpc("ew7_admin_upsert",{p_pw:PW,p_player_id:id,p_name:name,p_score:score}).then(function(r){
+      $("upsertBtn").disabled=false;
+      if(r.error){setMsg($("upsertMsg"),"Save failed.","err");return;}
+      setMsg($("upsertMsg"),"Saved.","ok");
+      $("aName").value="";$("aScore").value="";$("aId").value="";load();
+    });
+  }
+
+  $("loginBtn").onclick=login;
+  $("pw").addEventListener("keydown",function(e){if(e.key==="Enter")login();});
+  $("refreshBtn").onclick=load;
+  $("clearGuestsBtn").onclick=clearGuests;
+  $("upsertBtn").onclick=upsert;
+})();
+</script>
+</body>
+</html>

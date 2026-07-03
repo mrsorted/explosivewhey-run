@@ -159,7 +159,7 @@
       <div class="demohint" id="demoHint"></div>
       <div class="stack" style="margin-top:12px">
         <button class="btn primary" id="verifyBtn">Verify & play</button>
-        <button class="btn ghost" id="resendBtn">Use a different number / email</button>
+        <button class="btn ghost" id="resendBtn">Use a different number</button>
       </div>
     </div>
     <div class="msg" id="authMsg"></div>
@@ -800,9 +800,6 @@
       for(var x=-off;x<W;x+=92){c.fillStyle="#43AD60";c.fillRect(x,groundY+3,46,H-groundY);}
       c.strokeStyle="rgba(255,255,255,.16)";c.lineWidth=3;var d2=(t*speed)%46;
       for(var xd=-d2;xd<W;xd+=46){c.beginPath();c.moveTo(xd,groundY+20);c.lineTo(xd+22,groundY+20);c.stroke();}
-      // speed lines when fast/boost
-      if(started&&(boost>0||speed>360)){c.strokeStyle=boost>0?"rgba(5,70,122,.45)":"rgba(255,255,255,.28)";c.lineWidth=2;
-        for(var q=0;q<5;q++){var ly=groundY-20-q*22-(t*speed*2%22);c.beginPath();c.moveTo(W*0.5,ly);c.lineTo(W*0.5-40,ly);c.stroke();}}
       // power-ups (EW shaker)
       for(var i2=0;i2<items.length;i2++){if(items[i2].got)continue;var it=items[i2];
         var gb=0.5+0.5*Math.sin((t*6)+i2);

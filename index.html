@@ -691,9 +691,11 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
       c.save();
       c.translate(x, footY);
       if(state==="jump" && imgReady(IMG.jumpsheet)){
-        var jw=IMG.jumpsheet.naturalWidth/JUMP_FRAMES, jh=IMG.jumpsheet.naturalHeight, hwj=hh*jw/jh;
+        var jw=IMG.jumpsheet.naturalWidth/JUMP_FRAMES, jh=IMG.jumpsheet.naturalHeight;
+        var refH=imgReady(IMG.runsheet)?IMG.runsheet.naturalHeight:jh;  // scale jump by the RUN sheet height so the body matches run size
+        var sc=hh/refH, dw=jw*sc, dh=jh*sc;                            // feet at 0, raised arms extend above -hh
         var jf=Math.max(0,Math.min(JUMP_FRAMES-1, Math.round((vy+760)/1520*(JUMP_FRAMES-1))));
-        c.drawImage(IMG.jumpsheet, jf*jw,0,jw,jh, -hwj/2,-hh,hwj,hh);
+        c.drawImage(IMG.jumpsheet, jf*jw,0,jw,jh, -dw/2,-dh,dw,dh);
       }else if(state==="run" && imgReady(IMG.runsheet)){
         var rw=IMG.runsheet.naturalWidth/RUN_FRAMES, rh=IMG.runsheet.naturalHeight, hwr=hh*rw/rh;
         var fr=((Math.floor(ph/(2*Math.PI/RUN_FRAMES))%RUN_FRAMES)+RUN_FRAMES)%RUN_FRAMES;

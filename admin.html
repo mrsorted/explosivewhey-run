@@ -58,6 +58,11 @@
         <button class="ghost" id="refreshBtn">↻ Refresh</button>
         <button class="ghost" id="downloadBtn">⤓ Download CSV</button>
         <button class="danger" id="clearGuestsBtn">Clear all test guests</button>
+        <select id="filterSel" style="padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;font-weight:600;font-size:13px;cursor:pointer">
+          <option value="all">All entries</option>
+          <option value="real">Real (EW) only</option>
+          <option value="seed">Seeds only</option>
+        </select>
         <span class="spacer"></span>
         <span class="count" id="count"></span>
       </div>
@@ -89,7 +94,15 @@
   var SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1YXF2bXJkbGNoYmhseWl0enV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzQzMzAsImV4cCI6MjA5MDgxMDMzMH0.i75Az51OmvteiDnlPDUdu_IXDogRw_GVB2zCTNi8x7k";
   var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
   var PW=null;  // held in memory only, never stored
-  var currentList=[];  // last-loaded entries (for CSV export)
+  var fullList=[];     // all loaded entries (with global rank)
+  var currentList=[];  // currently-shown (filtered) entries, used for CSV export
+  var filter="all";    // all | real | seed
+  function isSeed(row){return /^seed-/.test(row.player_id);}
+  function filtered(){
+    if(filter==="real")return fullList.filter(function(r){return !isSeed(r);});
+    if(filter==="seed")return fullList.filter(isSeed);
+    return fullList;
+  }
 
   var $=function(id){return document.getElementById(id);};
   function setMsg(el,text,kind){el.textContent=text;el.className="msg"+(kind?(" "+kind):"");}
@@ -120,14 +133,17 @@
   }
 
   function render(list){
-    currentList=list;
+    fullList=list;
+    for(var k=0;k<fullList.length;k++)fullList[k]._rank=k+1;  // global leaderboard rank
+    var view=filtered();
+    currentList=view;  // CSV exports whatever is currently shown
     var tb=$("rows");tb.innerHTML="";
-    list.forEach(function(row,i){
+    view.forEach(function(row){
       var tr=document.createElement("tr");
-      var guest=/^guest-/.test(row.player_id)?' <span class="tag">test</span>':"";
+      var tag=isSeed(row)?' <span class="tag">seed</span>':(/^guest-/.test(row.player_id)?' <span class="tag">test</span>':"");
       tr.innerHTML=
-        "<td class='num'>"+(i+1)+"</td>"+
-        "<td>"+esc(row.name)+guest+"</td>"+
+        "<td class='num'>"+row._rank+"</td>"+
+        "<td>"+esc(row.name)+tag+"</td>"+
         "<td>"+esc(row.phone||"—")+"</td>"+
         "<td class='num'>"+esc(row.score)+"</td>"+
         "<td>"+esc(row.code||"")+"</td>"+
@@ -144,7 +160,9 @@
       tr.lastChild.appendChild(btn);
       tb.appendChild(tr);
     });
-    $("count").textContent=list.length+" entr"+(list.length===1?"y":"ies");
+    var seeds=0;for(var j=0;j<fullList.length;j++)if(isSeed(fullList[j]))seeds++;
+    var real=fullList.length-seeds;
+    $("count").innerHTML="<b>Real "+real+"</b> · Seed "+seeds+" · Total "+fullList.length+(filter!=="all"?(" · showing "+view.length):"");
     setMsg($("listMsg"),"");
   }
 
@@ -193,8 +211,8 @@
     if(!currentList.length){setMsg($("listMsg"),"Nothing to download yet.","err");return;}
     var cols=["rank","name","phone","score","code","player_id","updated_at"];
     var lines=[cols.join(",")];
-    currentList.forEach(function(r,i){
-      lines.push([i+1,r.name,r.phone||"",r.score,r.code||"",r.player_id,r.updated_at].map(csvCell).join(","));
+    currentList.forEach(function(r){
+      lines.push([r._rank,r.name,r.phone||"",r.score,r.code||"",r.player_id,r.updated_at].map(csvCell).join(","));
     });
     var blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
     var url=URL.createObjectURL(blob),a=document.createElement("a");
@@ -208,6 +226,7 @@
   $("pw").addEventListener("keydown",function(e){if(e.key==="Enter")login();});
   $("refreshBtn").onclick=load;
   $("downloadBtn").onclick=downloadCsv;
+  $("filterSel").onchange=function(){filter=this.value;if(fullList.length)render(fullList);};
   $("clearGuestsBtn").onclick=clearGuests;
   $("upsertBtn").onclick=upsert;
 })();

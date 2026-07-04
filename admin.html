@@ -56,6 +56,7 @@
     <div class="card">
       <div class="bar">
         <button class="ghost" id="refreshBtn">↻ Refresh</button>
+        <button class="ghost" id="downloadBtn">⤓ Download CSV</button>
         <button class="danger" id="clearGuestsBtn">Clear all test guests</button>
         <span class="spacer"></span>
         <span class="count" id="count"></span>
@@ -88,6 +89,7 @@
   var SUPABASE_ANON="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN1YXF2bXJkbGNoYmhseWl0enV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzUyMzQzMzAsImV4cCI6MjA5MDgxMDMzMH0.i75Az51OmvteiDnlPDUdu_IXDogRw_GVB2zCTNi8x7k";
   var sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON);
   var PW=null;  // held in memory only, never stored
+  var currentList=[];  // last-loaded entries (for CSV export)
 
   var $=function(id){return document.getElementById(id);};
   function setMsg(el,text,kind){el.textContent=text;el.className="msg"+(kind?(" "+kind):"");}
@@ -118,6 +120,7 @@
   }
 
   function render(list){
+    currentList=list;
     var tb=$("rows");tb.innerHTML="";
     list.forEach(function(row,i){
       var tr=document.createElement("tr");
@@ -130,7 +133,11 @@
         "<td>"+esc(row.code||"")+"</td>"+
         "<td style='color:var(--muted)'>"+esc(row.player_id)+"</td>"+
         "<td style='color:var(--muted)'>"+esc(fmtDate(row.updated_at))+"</td>"+
-        "<td></td>";
+        "<td class='act'></td>";
+      var edit=document.createElement("button");
+      edit.className="ghost";edit.textContent="Edit";edit.style.padding="6px 10px";edit.style.fontSize="12px";edit.style.marginRight="6px";
+      edit.onclick=function(){editEntry(row);};
+      tr.lastChild.appendChild(edit);
       var btn=document.createElement("button");
       btn.className="danger";btn.textContent="Delete";btn.style.padding="6px 10px";btn.style.fontSize="12px";
       btn.onclick=function(){delEntry(row.player_id,row.name);};
@@ -172,9 +179,35 @@
     });
   }
 
+  function editEntry(row){
+    $("aName").value=row.name||"";
+    $("aScore").value=row.score;
+    $("aId").value=row.player_id;
+    setMsg($("upsertMsg"),"Editing "+(row.name||row.player_id)+" — change the name/score and Save.","ok");
+    $("aName").focus();
+    $("aId").scrollIntoView({behavior:"smooth",block:"center"});
+  }
+
+  function csvCell(v){v=String(v==null?"":v);return /[",\n]/.test(v)?('"'+v.replace(/"/g,'""')+'"'):v;}
+  function downloadCsv(){
+    if(!currentList.length){setMsg($("listMsg"),"Nothing to download yet.","err");return;}
+    var cols=["rank","name","phone","score","code","player_id","updated_at"];
+    var lines=[cols.join(",")];
+    currentList.forEach(function(r,i){
+      lines.push([i+1,r.name,r.phone||"",r.score,r.code||"",r.player_id,r.updated_at].map(csvCell).join(","));
+    });
+    var blob=new Blob(["﻿"+lines.join("\r\n")],{type:"text/csv;charset=utf-8;"});
+    var url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download="ew7-entries-"+new Date().toISOString().slice(0,10)+".csv";
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    setTimeout(function(){URL.revokeObjectURL(url);},1500);
+    setMsg($("listMsg"),"Downloaded "+currentList.length+" entr"+(currentList.length===1?"y":"ies")+" (incl. phone numbers).","ok");
+  }
+
   $("loginBtn").onclick=login;
   $("pw").addEventListener("keydown",function(e){if(e.key==="Enter")login();});
   $("refreshBtn").onclick=load;
+  $("downloadBtn").onclick=downloadCsv;
   $("clearGuestsBtn").onclick=clearGuests;
   $("upsertBtn").onclick=upsert;
 })();

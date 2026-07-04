@@ -136,9 +136,11 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   .exitbtn{display:block;width:100%;margin-top:9px;background:transparent;border:none;color:#5a6577;font-weight:600;font-size:12px;padding:7px;cursor:pointer}
   .exitbtn:active{transform:translateY(1px)}
   /* leaderboard */
-  .lbcard{width:100%;max-width:340px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
-  .lbcard h3{font-family:Anton,sans-serif;font-size:24px;text-transform:uppercase;margin:0 0 12px;text-align:center}
-  .lbrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);font-size:13px}
+  .lbcard{width:100%;max-width:340px;max-height:100%;display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .lbcard h3{font-family:Anton,sans-serif;font-size:24px;text-transform:uppercase;margin:0 0 12px;text-align:center;flex:none}
+  .lbcard #lbList{overflow-y:auto;min-height:0;flex:1 1 auto}
+  .lbcard #lbClose{flex:none}
+  .lbrow{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13px}
   .lbrow:last-child{border-bottom:none}
   .lbrow .rk{font-family:Anton,sans-serif;font-size:18px;width:26px;color:var(--muted)}
   .lbrow .rk.top{color:var(--yellow)}

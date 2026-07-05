@@ -109,26 +109,43 @@
   function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
   function fmtDate(s){try{return new Date(s).toLocaleString();}catch(e){return s||"";}}
 
+  // Page past the 1000-row API cap: keep pulling until a short page comes back.
+  function fetchAllEntries(pw){
+    var PAGE=1000,all=[];
+    function pull(offset){
+      return sb.rpc("ew7_admin_entries",{p_pw:pw,p_limit:PAGE,p_offset:offset}).then(function(r){
+        if(r.error)return Promise.reject(r.error);
+        var batch=r.data||[];all=all.concat(batch);
+        if(batch.length<PAGE)return all;
+        return pull(offset+PAGE);
+      });
+    }
+    return pull(0);
+  }
+
   function login(){
     var pw=$("pw").value;
     if(!pw){setMsg($("loginMsg"),"Enter the password.","err");return;}
     $("loginBtn").disabled=true;setMsg($("loginMsg"),"Checking…");
-    sb.rpc("ew7_admin_entries",{p_pw:pw}).then(function(r){
+    fetchAllEntries(pw).then(function(rows){
       $("loginBtn").disabled=false;
-      if(r.error){setMsg($("loginMsg"),"Wrong password or access denied.","err");return;}
       PW=pw;$("pw").value="";
       $("loginCard").classList.add("hidden");
       $("console").classList.remove("hidden");
-      render(r.data||[]);
+      render(rows);
+    }).catch(function(){
+      $("loginBtn").disabled=false;
+      setMsg($("loginMsg"),"Wrong password or access denied.","err");
     });
   }
 
   function load(){
     if(PW==null)return;
     setMsg($("listMsg"),"Loading…");
-    sb.rpc("ew7_admin_entries",{p_pw:PW}).then(function(r){
-      if(r.error){setMsg($("listMsg"),"Session expired — reload and unlock again.","err");return;}
-      render(r.data||[]);
+    fetchAllEntries(PW).then(function(rows){
+      render(rows);
+    }).catch(function(){
+      setMsg($("listMsg"),"Session expired — reload and unlock again.","err");
     });
   }
 

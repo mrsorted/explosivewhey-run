@@ -416,12 +416,19 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
       }
       return Promise.resolve((Store.get("ew7_board")||[]).slice(0,n));
     },
-    rank:function(){
+    myRank:function(){
+      // Server-side exact rank/score/total. Works for any position (no 200/1000 cap).
+      if(this.remote&&Auth.id) return this.sb.rpc("ew7_my_rank",{p_player_id:Auth.id})
+        .then(function(r){var d=r&&r.data&&r.data[0]; if(!d||d.rank==null)return null;
+          return {rank:Number(d.rank),score:(d.score==null?null:Number(d.score)),total:Number(d.total)};})
+        .catch(function(){return null;});
+      // local fallback
       return this.top(200).then(function(list){
-        for(var i=0;i<list.length;i++) if(list[i].id===Auth.id) return i+1;
+        for(var i=0;i<list.length;i++) if(list[i].id===Auth.id) return {rank:i+1,score:list[i].score,total:list.length};
         return null;
       });
     },
+    rank:function(){ return this.myRank().then(function(m){return m?m.rank:null;}); },
     /* server-authoritative runs: 5 per verified phone (uid is stable per phone),
        so clearing cookies / switching device does NOT reset the count. */
     turnsLeft:function(){
@@ -580,11 +587,11 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   function renderBoard(){
     var el=document.getElementById("lbList");
     el.innerHTML='<div class="lbempty">Loading…</div>';
-    Scores.top(200).then(function(all){
-      if(!all.length){el.innerHTML='<div class="lbempty">No scores yet. Be the first to post one!</div>';return;}
-      var myRank=null,myScore=null;
-      for(var i=0;i<all.length;i++){if(all[i].id===Auth.id){myRank=i+1;myScore=all[i].score;break;}}
-      var top=all.slice(0,10);
+    Promise.all([Scores.top(10),Scores.myRank()]).then(function(res){
+      var top=res[0]||[],me=res[1];
+      if(!top.length){el.innerHTML='<div class="lbempty">No scores yet. Be the first to post one!</div>';return;}
+      var myRank=me&&me.rank?me.rank:null;
+      var myScore=me&&me.score!=null?me.score:null;
       var html=top.map(function(r,i){return lbRowHtml(i+1,(r.id===Auth.id?"You":esc(r.name)),r.score,i<3,r.id===Auth.id);}).join("");
       if(myRank&&myRank>10){
         html+='<div class="lbgap">···</div>'+lbRowHtml(myRank,"You",myScore,false,true);

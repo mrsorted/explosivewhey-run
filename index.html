@@ -207,7 +207,10 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   <p class="sub">Tap to <b>Jump</b> the stumps. One hit and the innings is over.</p>
   <div class="stat">
     <div class="box"><div class="n" id="bestScore">0</div><div class="l">Your best (m)</div></div>
-    <div class="box"><div class="n" id="rankNo">—</div><div class="l">Your rank</div></div>
+    <div class="box" id="rankBox"><div class="n" id="rankNo">—</div><div class="l">Your rank</div></div>
+  </div>
+  <div id="closedNote" class="hidden" style="background:#fff;border:1px solid var(--line);border-radius:13px;padding:13px 15px;margin-bottom:16px;text-align:center;font-size:13px;line-height:1.5;color:var(--ink)">
+    <b style="color:var(--blue)">Entries closed</b> at 11:59 PM, 7 July 2026.<br>Thanks for playing. Enjoy the game!
   </div>
   <div class="stack">
     <button class="btn primary" id="playBtn">Play ›</button>
@@ -253,7 +256,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     </div>
     <div class="over" id="lbOver">
       <div class="lbcard">
-        <h3>Leaderboard</h3>
+        <h3 id="lbTitle">Leaderboard</h3>
         <div id="lbList"></div>
         <button class="btn ghost" id="lbClose" style="margin-top:14px">Close</button>
       </div>
@@ -373,7 +376,9 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   var turnsRemaining=null;   // server-authoritative runs left (remote); mirrors local turns in demo mode
   /* verified phones that get unlimited runs (internal QA/test accounts) */
   var UNLIMITED_PHONES={"+917744907000":true};
-  function isUnlimited(){return TESTING||(!!Auth.phone&&!!UNLIMITED_PHONES[Auth.phone]);}
+  /* Contest entries closed after 11:59 PM IST, 7 July 2026. Game stays fully playable: unlimited runs, no scoring, no leaderboard. */
+  var ENTRIES_CLOSED=Date.now()>Date.parse("2026-07-07T23:59:59+05:30");
+  function isUnlimited(){return TESTING||ENTRIES_CLOSED||(!!Auth.phone&&!!UNLIMITED_PHONES[Auth.phone]);}
   var POWERUP_PTS=50;
   function pkey(){return "ew7_player_"+(Auth.id||"anon");}
   function player(){return Store.get(pkey())||{turns:MAX_TURNS,best:0,name:Auth.name,mask:maskId(Auth.mode,Auth.id||"")};}
@@ -535,8 +540,13 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
     document.getElementById("who").textContent=p.name||maskId(Auth.mode,Auth.id);
     document.getElementById("hiName").textContent=(p.name||"finisher").split(" ")[0];
     document.getElementById("bestScore").textContent=p.best;
-    document.getElementById("rankNo").textContent="…";
-    Scores.rank().then(function(rk){document.getElementById("rankNo").textContent=rk?("#"+rk):"—";});
+    if(ENTRIES_CLOSED){
+      var rb=document.getElementById("rankBox");if(rb)rb.classList.add("hidden");
+      document.getElementById("closedNote").classList.remove("hidden");
+    }else{
+      document.getElementById("rankNo").textContent="…";
+      Scores.rank().then(function(rk){document.getElementById("rankNo").textContent=rk?("#"+rk):"—";});
+    }
     serverTurns=!isUnlimited()&&Scores.remote&&!!Auth.id;
     if(isUnlimited()){setTurnUI(Infinity);return;}
     if(serverTurns){
@@ -582,6 +592,13 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   }
   function renderBoard(){
     var el=document.getElementById("lbList");
+    var lbTitle=document.getElementById("lbTitle");
+    if(ENTRIES_CLOSED){
+      if(lbTitle)lbTitle.textContent="Entries closed";
+      el.innerHTML='<div class="lbmsg" style="font-size:14px;line-height:1.5">Entries closed at 11:59 PM, 7 July 2026.<br>Thanks for playing. Enjoy the game!</div>';
+      return;
+    }
+    if(lbTitle)lbTitle.textContent="Leaderboard";
     el.innerHTML='<div class="lbempty">Loading…</div>';
     Promise.all([Scores.top(10),Scores.myRank()]).then(function(res){
       var top=res[0]||[],me=res[1];
@@ -991,14 +1008,20 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
       document.getElementById("sScore").textContent=sc;
       document.getElementById("sCode").textContent=entry;
       document.getElementById("sRes").textContent=(isBest?"NEW BEST!":"INNINGS OVER");
-      var tl="You ran <b>"+sc+"m</b>"+(scoops?(" with <b>"+scoops+"</b> Explosive boosts"):"")+
-        ". Rank <b>#…</b>"+(isUnlimited()?"":(" · <b>"+remLeft+"</b> run"+(remLeft===1?"":"s")+" left."));
-      document.getElementById("sTline").innerHTML=tl;
-      Scores.submit({id:Auth.id,name:(p.name||"Challenger"),score:sc,code:entry}).then(function(){
-        return Scores.rank();
-      }).then(function(rk){
-        document.getElementById("sTline").innerHTML=tl.replace("#…","#"+(rk||"—"));
-      });
+      if(ENTRIES_CLOSED){
+        document.getElementById("sTline").innerHTML=
+          "You ran <b>"+sc+"m</b>"+(scoops?(" with <b>"+scoops+"</b> Explosive boosts"):"")+
+          ". <span style=\"color:var(--muted)\">Entries closed. Enjoy the game!</span>";
+      }else{
+        var tl="You ran <b>"+sc+"m</b>"+(scoops?(" with <b>"+scoops+"</b> Explosive boosts"):"")+
+          ". Rank <b>#…</b>"+(isUnlimited()?"":(" · <b>"+remLeft+"</b> run"+(remLeft===1?"":"s")+" left."));
+        document.getElementById("sTline").innerHTML=tl;
+        Scores.submit({id:Auth.id,name:(p.name||"Challenger"),score:sc,code:entry}).then(function(){
+          return Scores.rank();
+        }).then(function(rk){
+          document.getElementById("sTline").innerHTML=tl.replace("#…","#"+(rk||"—"));
+        });
+      }
       var btns=document.getElementById("ovBtns");btns.innerHTML="";
       var row=document.createElement("div");row.className="ovrow";
       if(isUnlimited()||remLeft>0){var b1=document.createElement("button");b1.className="btn primary";b1.textContent="Play again";

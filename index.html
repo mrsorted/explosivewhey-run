@@ -159,6 +159,9 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
 <!-- ============ AUTH ============ -->
 <div class="wrap" id="auth">
   <img class="heroimg" src="endless-run-banner-v2.jpg" alt="The Endless Run Challenge — highest score wins a signed Explosive Whey polo, 4–7 July" width="820" height="948">
+  <div id="authClosedNote" class="hidden" style="max-width:400px;margin:0 auto 14px;background:#fff;border:1px solid var(--line);border-radius:13px;padding:12px 15px;text-align:center;font-size:12.5px;line-height:1.5;color:var(--ink)">
+    <b style="color:var(--blue)">Entries closed</b> at 11:59 PM, 7 July 2026. You can still sign in and enjoy the game.
+  </div>
   <div class="panel">
     <label>Verify to play</label>
     <div class="seg hidden"><button id="tabPhone" class="on">Phone</button><button id="tabEmail" class="hidden">Email</button></div>
@@ -378,6 +381,7 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
   var UNLIMITED_PHONES={"+917744907000":true};
   /* Contest entries closed after 11:59 PM IST, 7 July 2026. Game stays fully playable: unlimited runs, no scoring, no leaderboard. */
   var ENTRIES_CLOSED=Date.now()>Date.parse("2026-07-07T23:59:59+05:30");
+  if(ENTRIES_CLOSED){var _acn=document.getElementById("authClosedNote");if(_acn)_acn.classList.remove("hidden");}
   function isUnlimited(){return TESTING||ENTRIES_CLOSED||(!!Auth.phone&&!!UNLIMITED_PHONES[Auth.phone]);}
   var POWERUP_PTS=50;
   function pkey(){return "ew7_player_"+(Auth.id||"anon");}

@@ -156,6 +156,18 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
 </head>
 <body>
 
+<!-- ============ THANK-YOU LANDING (contest paused) ============ -->
+<div class="hidden" id="paused" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px 20px;background:#F0F0ED;text-align:center">
+  <div style="max-width:440px;width:100%">
+    <img src="logo.png" alt="Explosive Whey" style="height:62px;width:auto;display:block;margin:0 auto 16px">
+    <img src="hero-dhoni.png" alt="MS Dhoni with a signed Explosive Whey polo" style="width:100%;max-width:300px;height:auto;display:block;margin:0 auto 12px">
+    <h1 style="font-family:Anton,sans-serif;font-weight:400;text-transform:uppercase;font-size:clamp(30px,9vw,44px);line-height:.95;color:#05467A;margin:0 0 12px;letter-spacing:.01em">That's a wrap!</h1>
+    <p style="font-family:Inter,system-ui,sans-serif;font-size:15px;line-height:1.6;color:#3c4659;margin:0 0 22px">Thanks for all the interest in <b>The Endless Run Challenge</b>. Stay tuned for our next giveaway to win exciting <b>signed merchandise</b>.</p>
+    <a href="https://instagram.com/explosivewheyofficial" target="_blank" rel="noopener" style="display:inline-block;background:#05467A;color:#fff;font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:15px;text-decoration:none;padding:13px 26px;border-radius:12px">Follow @explosivewheyofficial</a>
+    <p style="font-family:Inter,system-ui,sans-serif;font-size:11.5px;color:#5E6B79;margin:18px 0 0">Winners announced on Instagram · follow for the next drop</p>
+  </div>
+</div>
+
 <!-- ============ AUTH ============ -->
 <div class="wrap" id="auth">
   <img class="heroimg" src="endless-run-banner-v2.jpg" alt="The Endless Run Challenge — highest score wins a signed Explosive Whey polo, 4–7 July" width="820" height="948">
@@ -274,6 +286,15 @@ src="https://www.facebook.com/tr?id=2143871622845851&ev=PageView&noscript=1"/></
 <script>
 "use strict";
 (function(){
+  /* ---------------- CONTEST PAUSED ----------------
+     Contest window is over. Show the thank-you landing and skip all game
+     init (Firebase, leaderboard, etc.). Set PAUSED=false to re-open the game. */
+  var PAUSED=true;
+  if(PAUSED){
+    var pd=document.getElementById("paused"); if(pd)pd.classList.remove("hidden");
+    ["auth","lobby","play"].forEach(function(id){var e=document.getElementById(id);if(e)e.classList.add("hidden");});
+    return;
+  }
   /* ---------------- tiny storage (localStorage on host, memory fallback) ---------------- */
   var mem={};
   var Store={
